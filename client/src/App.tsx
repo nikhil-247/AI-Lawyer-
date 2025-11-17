@@ -45,9 +45,7 @@ function Router() {
       <Route path="/welcome" component={Welcome} />
       <Route path="/login" component={Login} />
       <Route path="/signup" component={Signup} />
-      <Route path="/patient-setup">
-        {() => <ProtectedRoute component={PatientSetup} />}
-      </Route>
+      <Route path="/patient-setup" component={PatientSetup} />
       <Route path="/home">
         {() => <ProtectedRoute component={Home} />}
       </Route>
