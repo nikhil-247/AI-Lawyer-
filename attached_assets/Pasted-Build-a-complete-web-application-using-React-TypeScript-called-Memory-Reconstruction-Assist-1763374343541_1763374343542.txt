@@ -1,0 +1,300 @@
+Build a complete web application using React (TypeScript) called:
+ 💛 “Memory Reconstruction Assistant”
+The website is for caregivers of dementia patients.
+ The UI must be soft, warm, emotional, therapeutic, and extremely simple.
+
+🔥 Requirements for the Website
+Framework & Tools
+React
+
+
+TypeScript
+
+
+Tailwind CSS (soft pastel theme)
+
+
+React Router (if React) or App Router (if Next.js)
+
+
+Context API for global state:
+
+
+AuthContext
+
+
+PatientContext
+
+
+SessionContext
+
+
+Axios for API
+
+
+LocalStorage for caching
+
+
+
+0. ONBOARDING FLOW
+Screen 0.1 — Splash Screen
+App logo
+
+
+Tagline: “Rebuilding memories. Restoring calm.”
+
+
+Auto redirects to Welcome in 2 seconds
+
+
+Screen 0.2 — Welcome Screen
+Buttons:
+Get Started
+
+
+Login
+
+
+Screen 0.3 — Login / Signup
+Fields:
+Email / Phone
+
+
+Password
+ Buttons:
+
+
+Login
+
+
+Sign Up
+
+
+Continue with Google
+
+
+
+1. MAIN WEBSITE STRUCTURE
+Use a bottom navbar with 5 tabs:
+🏠 Home
+
+
+🧠 Memory Builder
+
+
+📅 Schedule
+
+
+📢 Emergency
+
+
+⚙️ Settings
+
+
+
+2. HOME TAB
+Screen — Dashboard
+Sections:
+Patient Card
+
+
+Quick Actions:
+ Add Memory, Generate Session, Start Playback
+
+
+Upcoming scheduled sessions
+
+
+Last played session
+
+
+
+3. PATIENT PROFILE SETUP WIZARD
+Steps:
+Name, Age, Dementia Stage, Relationship
+
+
+Upload Media (photos, videos, voice notes)
+
+
+Add Important People
+
+
+Add Significant Places
+
+
+Add Hobbies & Interests
+
+
+
+4. MEMORY BUILDER TAB
+Memory Sections:
+Life Story
+
+
+Photo Memories
+
+
+People
+
+
+Places
+
+
+Routine
+
+
+Sensitive topics
+
+
+Features:
+Add New Memory
+
+
+Guided Questions
+
+
+Memory List View (Edit/Delete)
+
+
+
+5. SESSION GENERATOR
+Screens:
+Choose Session Type
+
+
+Generated Session Preview
+
+
+Saved Sessions Library
+
+
+Reassurance, Orientation, Calm Sessions
+
+
+
+6. SCHEDULING SYSTEM
+Screens:
+Schedule Home (Calendar + List)
+
+
+Create Schedule (time, days, output device)
+
+
+Active Schedules (Pause/Edit/Delete)
+
+
+
+7. EMERGENCY MODE
+Screens:
+One-button reassurance session
+
+
+Quick Notes (what caused confusion?)
+
+
+
+8. POST SESSION FEEDBACK
+Emoji responses:
+😊 Yes
+
+
+😐 Neutral
+
+
+☹️ No
+
+
+notes & anxiety level
+
+
+
+9. SETTINGS TAB
+Sections:
+Patient profile
+
+
+Media library
+
+
+Backup & sync
+
+
+Notifications
+
+
+Data export
+
+
+
+TECHNICAL REQUIREMENTS
+Components required:
+Audio Player
+
+
+Media Uploader
+
+
+Calendar
+
+
+Session Player Modal
+
+
+Reaction Buttons
+
+
+Bottom Navigation
+
+
+APIs (mock or real):
+Auth
+
+
+Patient
+
+
+Media upload
+
+
+Memories CRUD
+
+
+Session generation
+
+
+Scheduling
+
+
+Emergency playback
+
+
+Feedback logging
+
+
+
+OUTPUT REQUIRED
+Generate:
+Page files
+
+
+Components
+
+
+Context Providers
+
+
+API folder with axios
+
+
+Types folder
+
+
+Project structure
+
+
+README with setup instructions
+
+
+Mock API stubs
+
