@@ -14,7 +14,7 @@ import { useMutation } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import type { Patient } from '@shared/schema';
 
-const steps = ['Basic Info', 'Photo', 'Complete'];
+const steps = ['Basic Info', 'Important People', 'Life Events'];
 
 export default function PatientSetup() {
   const [, setLocation] = useLocation();
@@ -28,7 +28,40 @@ export default function PatientSetup() {
     age: '',
     dementiaStage: '',
     relationship: '',
-    photoFiles: [] as File[],
+  });
+
+  const [people, setPeople] = useState<{
+    name: string;
+    relation: string;
+    profession: string;
+    contact: string;
+    age: string;
+  }[]>([]);
+
+  const [newPerson, setNewPerson] = useState({
+    name: '',
+    relation: '',
+    profession: '',
+    contact: '',
+    age: '',
+  });
+
+  const [lifeEvents, setLifeEvents] = useState({
+    early: {
+      dob: '',
+      schooling: '',
+      parentsAndChildhood: '',
+    },
+    mid: {
+      profession: '',
+      marriage: '',
+      financialStatus: '',
+      residence: '',
+    },
+    present: {
+      workStatus: '',
+      familyStatus: '',
+    },
   });
 
   const createPatientMutation = useMutation({
@@ -71,16 +104,29 @@ export default function PatientSetup() {
     }
   };
 
+  const handleAddPerson = () => {
+    if (!newPerson.name || !newPerson.relation) {
+      toast({
+        title: 'Missing information',
+        description: 'Please at least add name and relation.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setPeople([...people, newPerson]);
+    setNewPerson({ name: '', relation: '', profession: '', contact: '', age: '' });
+  };
+
   const handleSubmit = () => {
     if (!user) return;
     
     createPatientMutation.mutate({
       userId: user.id,
       name: formData.name,
-      age: parseInt(formData.age),
+      age: parseInt(formData.age, 10),
       dementiaStage: formData.dementiaStage,
       relationship: formData.relationship,
-      photoUrl: null,
     });
   };
 
@@ -194,36 +240,263 @@ export default function PatientSetup() {
           {currentStep === 1 && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-xl font-semibold text-foreground mb-2">Add a Photo</h2>
-                <p className="text-muted-foreground">Upload a recent photo (optional)</p>
+                <h2 className="text-xl font-semibold text-foreground mb-2">Important People & Family</h2>
+                <p className="text-muted-foreground">Add key people in your loved one's life</p>
               </div>
 
-              <MediaUploader
-                onUpload={(files) => setFormData({ ...formData, photoFiles: files })}
-                accept="image/*"
-                maxFiles={1}
-                label="Upload Photo"
-              />
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="person-name">Name *</Label>
+                    <Input
+                      id="person-name"
+                      value={newPerson.name}
+                      onChange={(e) => setNewPerson({ ...newPerson, name: e.target.value })}
+                      placeholder="Enter name"
+                      className="h-10 rounded-xl"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="person-relation">Relation *</Label>
+                    <Input
+                      id="person-relation"
+                      value={newPerson.relation}
+                      onChange={(e) => setNewPerson({ ...newPerson, relation: e.target.value })}
+                      placeholder="e.g. Son, Daughter, Friend"
+                      className="h-10 rounded-xl"
+                    />
+                  </div>
+                </div>
 
-              <p className="text-sm text-muted-foreground text-center">
-                You can skip this step and add a photo later
-              </p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="person-profession">Profession</Label>
+                    <Input
+                      id="person-profession"
+                      value={newPerson.profession}
+                      onChange={(e) => setNewPerson({ ...newPerson, profession: e.target.value })}
+                      placeholder="e.g. Teacher"
+                      className="h-10 rounded-xl"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="person-contact">Contact</Label>
+                    <Input
+                      id="person-contact"
+                      value={newPerson.contact}
+                      onChange={(e) => setNewPerson({ ...newPerson, contact: e.target.value })}
+                      placeholder="Phone or email"
+                      className="h-10 rounded-xl"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="person-age">Age</Label>
+                    <Input
+                      id="person-age"
+                      value={newPerson.age}
+                      onChange={(e) => setNewPerson({ ...newPerson, age: e.target.value })}
+                      placeholder="Age"
+                      className="h-10 rounded-xl"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end">
+                  <Button type="button" variant="outline" className="rounded-xl" onClick={handleAddPerson}>
+                    Add Person
+                  </Button>
+                </div>
+
+                {people.length > 0 && (
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-semibold text-foreground">Added people</h3>
+                    <div className="space-y-2">
+                      {people.map((person, index) => (
+                        <div
+                          key={index}
+                          className="flex justify-between items-center p-3 rounded-xl bg-muted"
+                        >
+                          <div className="space-y-1 text-sm">
+                            <p className="font-medium">{person.name} – {person.relation}</p>
+                            <p className="text-muted-foreground">
+                              {person.profession && `${person.profession} · `}
+                              {person.age && `${person.age} yrs`}
+                            </p>
+                          </div>
+                          <p className="text-xs text-muted-foreground">{person.contact}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
           {currentStep === 2 && (
-            <div className="space-y-6 text-center">
-              <div className="flex items-center justify-center">
-                <div className="rounded-full bg-primary/20 p-6">
-                  <Check className="h-12 w-12 text-primary" />
-                </div>
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-xl font-semibold text-foreground mb-2">Significant Life Events</h2>
+                <p className="text-muted-foreground">
+                  Capture key moments across early life, mid life, and present life.
+                </p>
               </div>
 
-              <div>
-                <h2 className="text-xl font-semibold text-foreground mb-2">All Set!</h2>
-                <p className="text-muted-foreground">
-                  {formData.name}'s profile is ready. You can now start building memories and creating sessions.
-                </p>
+              <div className="space-y-4">
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold text-foreground">Early life</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="dob">Date of birth</Label>
+                      <Input
+                        id="dob"
+                        value={lifeEvents.early.dob}
+                        onChange={(e) =>
+                          setLifeEvents({
+                            ...lifeEvents,
+                            early: { ...lifeEvents.early, dob: e.target.value },
+                          })
+                        }
+                        placeholder="DD/MM/YYYY"
+                        className="h-10 rounded-xl"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="schooling">Schooling / College</Label>
+                      <Input
+                        id="schooling"
+                        value={lifeEvents.early.schooling}
+                        onChange={(e) =>
+                          setLifeEvents({
+                            ...lifeEvents,
+                            early: { ...lifeEvents.early, schooling: e.target.value },
+                          })
+                        }
+                        placeholder="Schools, colleges"
+                        className="h-10 rounded-xl"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="parents-childhood">Parents & childhood</Label>
+                    <Input
+                      id="parents-childhood"
+                      value={lifeEvents.early.parentsAndChildhood}
+                      onChange={(e) =>
+                        setLifeEvents({
+                          ...lifeEvents,
+                          early: { ...lifeEvents.early, parentsAndChildhood: e.target.value },
+                        })
+                      }
+                      placeholder="Important details about parents and childhood"
+                      className="h-10 rounded-xl"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold text-foreground">Mid life</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="profession">Profession / Job</Label>
+                      <Input
+                        id="profession"
+                        value={lifeEvents.mid.profession}
+                        onChange={(e) =>
+                          setLifeEvents({
+                            ...lifeEvents,
+                            mid: { ...lifeEvents.mid, profession: e.target.value },
+                          })
+                        }
+                        placeholder="Main occupation"
+                        className="h-10 rounded-xl"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="marriage">Marriage</Label>
+                      <Input
+                        id="marriage"
+                        value={lifeEvents.mid.marriage}
+                        onChange={(e) =>
+                          setLifeEvents({
+                            ...lifeEvents,
+                            mid: { ...lifeEvents.mid, marriage: e.target.value },
+                          })
+                        }
+                        placeholder="Spouse, year, key details"
+                        className="h-10 rounded-xl"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="financial-status">Financial status</Label>
+                      <Input
+                        id="financial-status"
+                        value={lifeEvents.mid.financialStatus}
+                        onChange={(e) =>
+                          setLifeEvents({
+                            ...lifeEvents,
+                            mid: { ...lifeEvents.mid, financialStatus: e.target.value },
+                          })
+                        }
+                        placeholder="Overall financial situation"
+                        className="h-10 rounded-xl"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="residence">Place of residence</Label>
+                      <Input
+                        id="residence"
+                        value={lifeEvents.mid.residence}
+                        onChange={(e) =>
+                          setLifeEvents({
+                            ...lifeEvents,
+                            mid: { ...lifeEvents.mid, residence: e.target.value },
+                          })
+                        }
+                        placeholder="Cities, homes, important moves"
+                        className="h-10 rounded-xl"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold text-foreground">Present life</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="work-status">Retired or working</Label>
+                      <Input
+                        id="work-status"
+                        value={lifeEvents.present.workStatus}
+                        onChange={(e) =>
+                          setLifeEvents({
+                            ...lifeEvents,
+                            present: { ...lifeEvents.present, workStatus: e.target.value },
+                          })
+                        }
+                        placeholder="Current work status"
+                        className="h-10 rounded-xl"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="family-status">Family status</Label>
+                      <Input
+                        id="family-status"
+                        value={lifeEvents.present.familyStatus}
+                        onChange={(e) =>
+                          setLifeEvents({
+                            ...lifeEvents,
+                            present: { ...lifeEvents.present, familyStatus: e.target.value },
+                          })
+                        }
+                        placeholder="Who they live with, family situation"
+                        className="h-10 rounded-xl"
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           )}

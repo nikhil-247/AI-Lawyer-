@@ -1,9 +1,8 @@
 import { Link, useLocation } from 'wouter';
-import { Home, Brain, Calendar, AlertCircle, Settings } from 'lucide-react';
+import { Home, Calendar, AlertCircle, Settings } from 'lucide-react';
 
 const navItems = [
   { path: '/home', icon: Home, label: 'Home' },
-  { path: '/memory-builder', icon: Brain, label: 'Memory' },
   { path: '/schedule', icon: Calendar, label: 'Schedule' },
   { path: '/emergency', icon: AlertCircle, label: 'Emergency' },
   { path: '/settings', icon: Settings, label: 'Settings' },

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Calendar as CalendarIcon, Plus, Clock, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { queryClient, apiRequest } from '@/lib/queryClient';
 import type { Schedule, Session } from '@shared/schema';
+import { AudioPlayer } from '@/components/AudioPlayer';
 
 const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -25,11 +26,32 @@ export default function SchedulePage() {
   const [selectedDays, setSelectedDays] = useState<string[]>([]);
   const [selectedSession, setSelectedSession] = useState('');
   const [time, setTime] = useState('09:00');
+  const [selectedDate, setSelectedDate] = useState('');
 
   const { data: schedules, isLoading } = useQuery<Schedule[]>({
     queryKey: currentPatient ? [`/api/schedules/${currentPatient.id}`] : [],
     enabled: !!currentPatient,
   });
+
+  const filteredSchedules = useMemo(() => {
+    if (!schedules) return [] as Schedule[];
+    if (!selectedDate) return schedules;
+
+    const target = new Date(selectedDate);
+    const targetY = target.getFullYear();
+    const targetM = target.getMonth();
+    const targetD = target.getDate();
+
+    return schedules.filter((s) => {
+      if (!s.createdAt) return false;
+      const created = new Date(s.createdAt as unknown as string);
+      return (
+        created.getFullYear() === targetY &&
+        created.getMonth() === targetM &&
+        created.getDate() === targetD
+      );
+    });
+  }, [schedules, selectedDate]);
 
   const { data: sessions } = useQuery<Session[]>({
     queryKey: currentPatient ? [`/api/sessions/${currentPatient.id}`] : [],
@@ -101,89 +123,116 @@ export default function SchedulePage() {
   return (
     <div className="min-h-screen bg-background pb-24">
       <div className="max-w-2xl mx-auto px-6 py-8 space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold text-foreground">Schedule</h1>
-            <p className="text-muted-foreground mt-1">Manage session schedules</p>
+            <p className="text-muted-foreground mt-1">Manage session schedules and audio therapy</p>
           </div>
 
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="rounded-xl h-12" data-testid="button-add-schedule">
-                <Plus className="h-4 w-4 mr-2" />
-                New Schedule
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-lg rounded-2xl">
-              <DialogHeader>
-                <DialogTitle>Create Schedule</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="session">Select Session</Label>
-                  <Select value={selectedSession} onValueChange={setSelectedSession}>
-                    <SelectTrigger className="h-12 rounded-xl" data-testid="select-session">
-                      <SelectValue placeholder="Choose a session" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {sessions?.map((session) => (
-                        <SelectItem key={session.id} value={session.id}>
-                          {session.title}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+          <div className="flex items-center gap-3">
+            <div className="space-y-1 text-right">
+              <Label htmlFor="filter-date" className="text-xs text-muted-foreground">
+                Filter by date
+              </Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="filter-date"
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="h-10 rounded-xl text-xs"
+                />
+                {selectedDate && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 rounded-full"
+                    onClick={() => setSelectedDate('')}
+                  >
+                    ✕
+                  </Button>
+                )}
+              </div>
+            </div>
 
-                <div className="space-y-2">
-                  <Label>Days of Week</Label>
-                  <div className="grid grid-cols-4 gap-2">
-                    {daysOfWeek.map((day) => (
-                      <Button
-                        key={day}
-                        variant={selectedDays.includes(day) ? 'default' : 'outline'}
-                        className="h-10 rounded-xl"
-                        onClick={() => toggleDay(day)}
-                        data-testid={`day-${day}`}
-                      >
-                        {day}
-                      </Button>
-                    ))}
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="rounded-xl h-12" data-testid="button-add-schedule">
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Schedule
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-lg rounded-2xl">
+                <DialogHeader>
+                  <DialogTitle>Create Schedule</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="session">Select Session</Label>
+                    <Select value={selectedSession} onValueChange={setSelectedSession}>
+                      <SelectTrigger className="h-12 rounded-xl" data-testid="select-session">
+                        <SelectValue placeholder="Choose a session" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {sessions?.map((session) => (
+                          <SelectItem key={session.id} value={session.id}>
+                            {session.title}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Days of Week</Label>
+                    <div className="grid grid-cols-4 gap-2">
+                      {daysOfWeek.map((day) => (
+                        <Button
+                          key={day}
+                          variant={selectedDays.includes(day) ? 'default' : 'outline'}
+                          className="h-10 rounded-xl"
+                          onClick={() => toggleDay(day)}
+                          data-testid={`day-${day}`}
+                        >
+                          {day}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="time">Time</Label>
+                    <Input
+                      id="time"
+                      type="time"
+                      value={time}
+                      onChange={(e) => setTime(e.target.value)}
+                      className="h-12 rounded-xl"
+                      data-testid="input-time"
+                    />
+                  </div>
+
+                  <div className="flex gap-3">
+                    <Button
+                      variant="outline"
+                      className="flex-1 h-12 rounded-xl"
+                      onClick={() => setIsDialogOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      className="flex-1 h-12 rounded-xl"
+                      onClick={handleCreateSchedule}
+                      disabled={createScheduleMutation.isPending}
+                      data-testid="button-save-schedule"
+                    >
+                      {createScheduleMutation.isPending ? 'Creating...' : 'Create Schedule'}
+                    </Button>
                   </div>
                 </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="time">Time</Label>
-                  <Input
-                    id="time"
-                    type="time"
-                    value={time}
-                    onChange={(e) => setTime(e.target.value)}
-                    className="h-12 rounded-xl"
-                    data-testid="input-time"
-                  />
-                </div>
-
-                <div className="flex gap-3">
-                  <Button
-                    variant="outline"
-                    className="flex-1 h-12 rounded-xl"
-                    onClick={() => setIsDialogOpen(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    className="flex-1 h-12 rounded-xl"
-                    onClick={handleCreateSchedule}
-                    disabled={createScheduleMutation.isPending}
-                    data-testid="button-save-schedule"
-                  >
-                    {createScheduleMutation.isPending ? 'Creating...' : 'Create Schedule'}
-                  </Button>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
 
         {isLoading ? (
@@ -194,13 +243,20 @@ export default function SchedulePage() {
               </Card>
             ))}
           </div>
-        ) : schedules && schedules.length > 0 ? (
+        ) : filteredSchedules && filteredSchedules.length > 0 ? (
           <div className="space-y-3">
-            {schedules.map((schedule) => {
+            {filteredSchedules.map((schedule) => {
               const session = sessions?.find((s) => s.id === schedule.sessionId);
+
+              const resolvedAudioUrl = session?.audioUrl
+                ? session.audioUrl.startsWith('http')
+                  ? session.audioUrl
+                  : `http://localhost:3000${session.audioUrl}`
+                : undefined;
+
               return (
                 <Card key={schedule.id} className="rounded-xl hover-elevate" data-testid={`schedule-${schedule.id}`}>
-                  <CardContent className="p-6">
+                  <CardContent className="p-6 space-y-3">
                     <div className="flex items-start gap-4">
                       <div className="rounded-full bg-primary/10 p-3">
                         <CalendarIcon className="h-5 w-5 text-primary" />
@@ -212,6 +268,12 @@ export default function SchedulePage() {
                             <Clock className="h-4 w-4 text-muted-foreground" />
                             <p className="text-sm text-muted-foreground">{schedule.time}</p>
                           </div>
+                          {schedule.createdAt && (
+                            <p className="text-[11px] text-muted-foreground mt-1">
+                              Created on{' '}
+                              {new Date(schedule.createdAt as unknown as string).toLocaleDateString()}
+                            </p>
+                          )}
                         </div>
                         <div className="flex flex-wrap gap-1">
                           {schedule.days.map((day) => (
@@ -230,6 +292,13 @@ export default function SchedulePage() {
                         <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     </div>
+
+                    {resolvedAudioUrl && (
+                      <AudioPlayer
+                        audioUrl={resolvedAudioUrl}
+                        title={session?.title || 'Session'}
+                      />
+                    )}
                   </CardContent>
                 </Card>
               );

@@ -13,8 +13,12 @@ import Login from "@/pages/Login";
 import Signup from "@/pages/Signup";
 import PatientSetup from "@/pages/PatientSetup";
 import Home from "@/pages/Home";
-import MemoryBuilder from "@/pages/MemoryBuilder";
 import SessionGenerator from "@/pages/SessionGenerator";
+import SessionFamily from "@/pages/SessionFamily";
+import SessionCoreMemories from "@/pages/SessionCoreMemories";
+import SessionReassurances from "@/pages/SessionReassurances";
+import SessionMorningRoutine from "@/pages/SessionMorningRoutine";
+import SessionNightRoutine from "@/pages/SessionNightRoutine";
 import SchedulePage from "@/pages/Schedule";
 import Emergency from "@/pages/Emergency";
 import Settings from "@/pages/Settings";
@@ -49,11 +53,23 @@ function Router() {
       <Route path="/home">
         {() => <ProtectedRoute component={Home} />}
       </Route>
-      <Route path="/memory-builder">
-        {() => <ProtectedRoute component={MemoryBuilder} />}
-      </Route>
       <Route path="/session-generator">
         {() => <ProtectedRoute component={SessionGenerator} />}
+      </Route>
+      <Route path="/session-family">
+        {() => <ProtectedRoute component={SessionFamily} />}
+      </Route>
+      <Route path="/session-core-memories">
+        {() => <ProtectedRoute component={SessionCoreMemories} />}
+      </Route>
+      <Route path="/session-reassurances">
+        {() => <ProtectedRoute component={SessionReassurances} />}
+      </Route>
+      <Route path="/session-morning-routine">
+        {() => <ProtectedRoute component={SessionMorningRoutine} />}
+      </Route>
+      <Route path="/session-night-routine">
+        {() => <ProtectedRoute component={SessionNightRoutine} />}
       </Route>
       <Route path="/schedule">
         {() => <ProtectedRoute component={SchedulePage} />}
