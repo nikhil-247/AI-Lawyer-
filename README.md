@@ -1,6 +1,7 @@
-# Memory Reconstruct Assist
+# NeuroEase: AI-Powered Memory Reconstruction for Dementia Patients
 
-A full-stack caregiving assistant for people living with dementia. It combines:
+
+An AI-based platform that helps re-construct important life memories based on the information provided by caregivers, and then turns them into audio-based memory sessions that the patient can listen to everyday.
 
 - **React + TypeScript** front-end (caregiver app)
 - **Express + MongoDB** backend (auth, patients, sessions, schedules, uploads)
