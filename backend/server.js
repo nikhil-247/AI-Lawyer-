@@ -10,11 +10,12 @@ const Memory = require('./models/memory');
 const Session = require('./models/session');
 const Schedule = require('./models/schedule');
 const Feedback = require('./models/feedback');
+const { hashPassword, verifyPassword } = require('./lib/password');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(express.json());
+app.use(express.json({ limit: '1mb' }));
 
 // Ensure uploads directory exists
 const uploadsDir = path.join(__dirname, 'uploads');
@@ -25,83 +26,116 @@ if (!fs.existsSync(uploadsDir)) {
 // Serve uploaded files statically
 app.use('/uploads', express.static(uploadsDir));
 
-// Multer storage for audio uploads
+// Accept only known audio MIME types and use fixed extensions rather than user-supplied filenames.
+const AUDIO_EXTENSIONS = {
+  'audio/mpeg': '.mp3',
+  'audio/mp3': '.mp3',
+  'audio/wav': '.wav',
+  'audio/x-wav': '.wav',
+  'audio/webm': '.webm',
+  'audio/ogg': '.ogg',
+  'audio/mp4': '.m4a',
+};
+
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadsDir);
-  },
-  filename: (req, file, cb) => {
+  destination: (_req, _file, cb) => cb(null, uploadsDir),
+  filename: (_req, file, cb) => {
+    const extension = AUDIO_EXTENSIONS[file.mimetype];
+    if (!extension) {
+      return cb(new Error('Unsupported audio type.'), '');
+    }
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const ext = path.extname(file.originalname) || '.webm';
-    cb(null, `audio-${uniqueSuffix}${ext}`);
+    cb(null, `audio-${uniqueSuffix}${extension}`);
   },
 });
 
-const upload = multer({ storage });
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (!AUDIO_EXTENSIONS[file.mimetype]) {
+      req.audioUploadError = true;
+      return cb(null, false);
+    }
+    cb(null, true);
+  },
+});
 
 // Multer memory storage for on-the-fly transcription (no files written to disk)
 const memoryUpload = multer({ storage: multer.memoryStorage() });
 
-// Simple request logger for debugging
-app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
-  if (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH') {
-    console.log('Body:', req.body);
-  }
+// Log request metadata only. Never log request bodies because they may contain passwords or patient data.
+app.use((req, _res, next) => {
+  console.info(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
   next();
 });
 
-// Auth routes
+// Authentication primitives for the prototype. This validates passwords but does not yet issue a session/token.
 app.post('/api/auth/signup', async (req, res) => {
   try {
-    const { name, email, password } = req.body;
-
-    if (!name || !email || !password) {
-      return res.status(400).json({ message: 'Name, email, and password are required.' });
+    const payload = req.body;
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      return res.status(400).json({ message: 'A JSON object is required.' });
     }
 
-    console.log('Signup attempt for email:', email);
+    const name = typeof payload.name === 'string' ? payload.name.trim() : '';
+    const email = typeof payload.email === 'string' ? payload.email.trim().toLowerCase() : '';
+    const password = typeof payload.password === 'string' ? payload.password : '';
+    if (!name || name.length > 120 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ message: 'A valid name and email are required.' });
+    }
+    if (password.length < 8 || password.length > 1024) {
+      return res.status(400).json({ message: 'Password must be between 8 and 1024 characters.' });
+    }
 
-    const existing = await User.findOne({ email });
+    const existing = await User.findOne({ email }).select('_id');
     if (existing) {
-      console.log('Signup failed: email already in use');
-      return res.status(400).json({ message: 'Email already in use.' });
+      return res.status(409).json({ message: 'Email already in use.' });
     }
 
-    const user = await User.create({ name, email, password });
-    console.log('User created with id:', user._id);
-
-    const { password: _pw, ...userData } = user.toObject();
-    const responseUser = { ...userData, id: user._id };
-    res.status(201).json(responseUser);
+    const user = await User.create({ name, email, password: await hashPassword(password) });
+    const userData = user.toObject();
+    delete userData.password;
+    res.status(201).json({ ...userData, id: user._id });
   } catch (err) {
-    console.error('Error in /api/auth/signup:', err);
-
+    console.error('Error in /api/auth/signup:', err instanceof Error ? err.name : 'UnknownError');
     res.status(500).json({ message: 'Signup failed.' });
   }
 });
 
 app.post('/api/auth/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
-
+    const payload = req.body;
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      return res.status(400).json({ message: 'A JSON object is required.' });
+    }
+    const email = typeof payload.email === 'string' ? payload.email.trim().toLowerCase() : '';
+    const password = typeof payload.password === 'string' ? payload.password : '';
     if (!email || !password) {
       return res.status(400).json({ message: 'Email and password are required.' });
     }
 
-    console.log('Login attempt for email:', email);
-
-    const user = await User.findOne({ email, password });
+    const user = await User.findOne({ email }).select('+password');
     if (!user) {
-      console.log('Login failed: invalid credentials');
       return res.status(401).json({ message: 'Invalid credentials.' });
     }
 
-    const { password: _pw, ...userData } = user.toObject();
-    const responseUser = { ...userData, id: user._id };
-    res.json(responseUser);
+    const verification = await verifyPassword(password, user.password);
+    if (!verification.valid) {
+      return res.status(401).json({ message: 'Invalid credentials.' });
+    }
+
+    // Upgrade old plain-text records on successful login; new accounts are always hashed.
+    if (verification.needsRehash) {
+      user.password = await hashPassword(password);
+      await user.save();
+    }
+
+    const userData = user.toObject();
+    delete userData.password;
+    res.json({ ...userData, id: user._id });
   } catch (err) {
-    console.error(err);
+    console.error('Error in /api/auth/login:', err instanceof Error ? err.name : 'UnknownError');
     res.status(500).json({ message: 'Login failed.' });
   }
 });
@@ -254,19 +288,26 @@ app.post('/api/feedback', async (req, res) => {
   }
 });
 
-// Audio upload
-app.post('/api/upload/audio', upload.single('audio'), (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ message: 'No audio file uploaded.' });
+// Audio upload with a size limit and MIME allowlist.
+app.post('/api/upload/audio', (req, res, next) => {
+  upload.single('audio')(req, res, (error) => {
+    if (error instanceof multer.MulterError && error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(413).json({ message: 'Audio file must be 10 MB or smaller.' });
     }
-
-    const fileUrl = `/uploads/${req.file.filename}`;
-    res.status(201).json({ url: fileUrl });
-  } catch (err) {
-    console.error('Error in /api/upload/audio:', err);
-    res.status(500).json({ message: 'Failed to upload audio.' });
+    if (error) {
+      return res.status(400).json({ message: 'Invalid audio upload.' });
+    }
+    next();
+  });
+}, (req, res) => {
+  if (req.audioUploadError) {
+    return res.status(415).json({ message: 'Unsupported audio type. Use MP3, WAV, WEBM, OGG, or M4A.' });
   }
+  if (!req.file) {
+    return res.status(400).json({ message: 'No audio file uploaded.' });
+  }
+
+  return res.status(201).json({ url: `/uploads/${req.file.filename}` });
 });
 
 // Audio transcription (placeholder – integrate real STT later)
@@ -288,10 +329,7 @@ app.post('/api/transcribe', memoryUpload.single('audio'), async (req, res) => {
 });
 
 mongoose
-  .connect('mongodb://127.0.0.1:27017/memory-assist', {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
+  .connect(process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/memory-assist')
   .then(() => console.log('MongoDB Connected'))
   .catch((err) => console.error('MongoDB connection error', err));
 
