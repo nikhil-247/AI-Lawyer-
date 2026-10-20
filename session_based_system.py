@@ -24,8 +24,13 @@ from typing import Dict, List, Literal
 from pathlib import Path
 
 import random
+import os
 
-from IPython.display import Audio, display
+try:
+    from IPython.display import Audio, display
+except ImportError:  # Keep the FastAPI service importable outside notebooks.
+    Audio = None
+    display = None
 
 # ElevenLabs (TTS)
 from elevenlabs.client import ElevenLabs
@@ -668,11 +673,9 @@ print("✅ Session story dispatcher ready.")
 # STEP 6: ElevenLabs – TTS helpers
 # ============================================
 
-# ⚠️ IMPORTANT:
-# Yaha apna real ElevenLabs API key daalo.
-ELEVEN_API_KEY = "your_api_key"
-
-client = ElevenLabs(api_key=ELEVEN_API_KEY)
+# Configure the key in the process environment. Never commit provider credentials.
+ELEVEN_API_KEY = os.getenv("ELEVENLABS_API_KEY")
+client = ElevenLabs(api_key=ELEVEN_API_KEY) if ELEVEN_API_KEY else None
 
 # Apne account ke voices ke IDs dalao (example IDs, replace with yours)
 VOICE_MAP = {
@@ -683,6 +686,8 @@ VOICE_MAP = {
 }
 
 def generate_voice_bytes(story_text: str, language: Language, gender: VoiceGender) -> bytes:
+    if client is None:
+        raise RuntimeError("Audio generation is not configured. Set ELEVENLABS_API_KEY.")
     key = (language, gender)
     voice_id = VOICE_MAP.get(key)
 
@@ -712,8 +717,9 @@ def play_and_save_voice(
 ):
     try:
         audio_bytes = generate_voice_bytes(story_text, language, gender)
-        # Colab / Jupyter pe play button
-        display(Audio(audio_bytes, autoplay=False))
+        # Play inline only in notebook environments; server use should just save audio.
+        if Audio is not None and display is not None:
+            display(Audio(audio_bytes, autoplay=False))
         Path(filename).write_bytes(audio_bytes)
         print("🎧 Audio saved as:", filename)
         return filename
