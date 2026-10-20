@@ -2,7 +2,7 @@
 
 NeuroEase is a prototype for caregivers to create personalized memory-story sessions and audio routines for people living with dementia. It combines a React/TypeScript caregiver interface, an Express/MongoDB API for patient/session records, and a FastAPI service that generates story text and optionally audio.
 
-> **Important security limitation:** This repository is not ready for public or clinical deployment. Although password storage has been changed to salted scrypt hashes, the Express patient, memory, session, schedule, feedback, and upload endpoints do not yet enforce authenticated user ownership or authorization. Login currently returns user data but does not issue a session/token. Do not store real patient, health, or other sensitive data in this prototype until authentication, authorization, private media access, retention, and privacy controls are implemented and reviewed.
+> **Important security limitation:** This repository is not ready for public or clinical deployment. Password storage uses salted scrypt hashes, but the Express patient, memory, session, schedule, feedback, and upload endpoints do not yet enforce authenticated user ownership or authorization. Login currently returns user data but does not issue a session/token. Do not store real patient, health, or other sensitive data in this prototype until authentication, authorization, private media access, retention, and privacy controls are implemented and reviewed.
 
 ## Current components
 
@@ -91,7 +91,7 @@ Activate it, then install the story service dependencies:
 # macOS/Linux
 source .venv/bin/activate
 
-python -m pip install fastapi uvicorn pydantic elevenlabs
+python -m python -m pip install -r requirements-story.txt
 ```
 
 Set the provider key if audio generation is needed:
@@ -140,7 +140,7 @@ These tests cover scrypt hashing, password verification, and migration of legacy
 
 1. Add session or token issuance to login, then protect every patient-related route with authentication and per-patient ownership checks.
 2. Serve uploaded media through authorized routes instead of exposing the uploads directory publicly.
-3. Restrict the FastAPI CORS allowlist and add request/rate limits to both services.
+3. Restrict the FastAPI CORS allowlist and add request/rate limits to both services. CI verifies password helper tests and Python syntax; it is not an application-wide authorization or integration test.
 4. Integrate real speech-to-text before advertising transcription.
 5. Add automated API integration tests with a test database, request validation, and a frontend end-to-end smoke test.
 6. Document the dataset/model provenance and clinical-safety boundaries for generated content.
