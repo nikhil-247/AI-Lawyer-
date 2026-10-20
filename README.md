@@ -1,210 +1,148 @@
-# NeuroEase: AI-Powered Memory Reconstruction for Dementia Patients
+# NeuroEase — Caregiver Memory & Audio Session Prototype
 
+NeuroEase is a prototype for caregivers to create personalized memory-story sessions and audio routines for people living with dementia. It combines a React/TypeScript caregiver interface, an Express/MongoDB API for patient/session records, and a FastAPI service that generates story text and optionally audio.
 
-An AI-based platform that helps re-construct important life memories based on the information provided by caregivers, and then turns them into audio-based memory sessions that the patient can listen to everyday.
+> **Important security limitation:** This repository is not ready for public or clinical deployment. Although password storage has been changed to salted scrypt hashes, the Express patient, memory, session, schedule, feedback, and upload endpoints do not yet enforce authenticated user ownership or authorization. Login currently returns user data but does not issue a session/token. Do not store real patient, health, or other sensitive data in this prototype until authentication, authorization, private media access, retention, and privacy controls are implemented and reviewed.
 
-- **React + TypeScript** front-end (caregiver app)
-- **Express + MongoDB** backend (auth, patients, sessions, schedules, uploads)
-- **FastAPI** microservice for ML-generated therapy stories and audio (`session_api.py`)
-- **Python quiz engine** to generate simple Yes/No follow-up questions
+## Current components
 
-The app helps caregivers create personalized audio therapy sessions, schedule them, and track engagement.
+- **Client:** React + TypeScript/Vite caregiver interface.
+- **Express API:** MongoDB models and routes for sign-up/login, patients, memories, sessions, schedules, feedback, and audio uploads.
+- **Story service:** FastAPI `POST /api/session-story`, which composes story text and optionally returns generated audio as base64.
+- **Text-to-speech:** ElevenLabs SDK, configured with the `ELEVENLABS_API_KEY` environment variable.
+- **Quiz helpers:** `quiz_engine.py` contains helpers for generating and scoring follow-up questions. The full quiz flow is not exposed as a completed API integration in this version.
 
----
+## Repository layout
 
-## 1. Project Structure
+```text
+AI-Lawyer-/
+├── backend/
+│   ├── server.js
+│   ├── models/
+│   ├── lib/password.js
+│   └── tests/password.test.js
+├── client/
+├── session_api.py
+├── session_based_system.py
+└── quiz_engine.py
+```
 
-- `client/`
-  - React app (Vite) with TypeScript
-  - Pages like `Welcome`, `Home` (Dashboard), `Schedule`, and all ML session pages
-- `backend/`
-  - Express server and REST API endpoints
-  - Models (e.g. `patient.js`, `session.js`, `schedule.js`)
-  - Audio upload handler (`POST /api/upload/audio`)
-- `session_api.py`
-  - FastAPI app exposing `POST /api/session-story`
-  - Uses `session_based_system.py` to generate story + audio (base64)
-- `session_based_system.py`
-  - Core ML / story-generation logic
-  - ElevenLabs text-to-speech integration
-- `quiz_engine.py`
-  - Quiz/question generation and scoring helpers
+## Requirements
 
----
+- Node.js 20 or later and npm
+- MongoDB, local or a database you control
+- Python 3.10+ for the story API
+- ElevenLabs API key only if audio generation is required
 
-## 2. Prerequisites
+## Run the Express API
 
-- **Node.js** (LTS)
-- **npm** or **yarn**
-- **Python 3.10+**
-- **MongoDB** running locally (e.g. `mongodb://localhost:27017`)
-- An **ElevenLabs API key** (optional but required for real audio)
-
----
-
-## 3. Backend (Express) Setup
-
-From the project root:
+From the repository root:
 
 ```bash
 cd backend
 npm install
 ```
 
-Configure environment (example `.env` in `backend/`):
+Set environment variables in the same terminal, then start the service.
 
-```bash
-MONGODB_URI=mongodb://localhost:27017/memory-reconstruct
-PORT=3000
-JWT_SECRET=change_me
-```
+Windows PowerShell:
 
-Run backend:
-
-```bash
+```powershell
+$env:MONGODB_URI = "mongodb://127.0.0.1:27017/memory-assist"
+$env:PORT = "3000"
 npm start
-# or
-npm run dev
 ```
 
-Key endpoints:
+macOS/Linux:
 
-- `POST /api/auth/login` – user login
-- `POST /api/patients` – create patient profile
-- `GET /api/patients` – list patients
-- `POST /api/sessions` – create a therapy session record
-- `GET /api/sessions/:patientId` – sessions for a patient
-- `POST /api/schedules` – create schedule entries
-- `GET /api/schedules/:patientId` – schedules for a patient
-- `POST /api/upload/audio` – upload MP3 blobs, returns `{ url }`
+```bash
+export MONGODB_URI="mongodb://127.0.0.1:27017/memory-assist"
+export PORT=3000
+npm start
+```
 
----
+The API listens on port 3000 by default. The current routes include:
 
-## 4. FastAPI ML Service
+- `POST /api/auth/signup` and `POST /api/auth/login`
+- `POST /api/patients`
+- `GET/POST /api/memories`
+- `GET/POST/DELETE /api/sessions`
+- `GET/POST/DELETE /api/schedules`
+- `POST /api/feedback`
+- `POST /api/upload/audio`
+- `POST /api/transcribe` (placeholder only; actual speech-to-text is not integrated)
 
-Install Python dependencies in a virtual env (example):
+The transcription endpoint currently returns a placeholder response and must not be described as working speech-to-text.
+
+## Run the story API
+
+From the repository root, create a Python virtual environment:
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\\Scripts\\activate
-pip install -r requirements.txt  # if present, or install needed libs manually
 ```
 
-Make sure `session_based_system.py` and `session_api.py` are importable from the project root.
-
-Set your ElevenLabs key in `session_based_system.py`:
-
-```python
-ELEVEN_API_KEY = "your_api_key"  # replace with real key
-```
-
-Run FastAPI service:
+Activate it, then install the story service dependencies:
 
 ```bash
+# Windows PowerShell
+.venv\Scripts\Activate.ps1
+
+# macOS/Linux
+source .venv/bin/activate
+
+python -m pip install fastapi uvicorn pydantic elevenlabs
+```
+
+Set the provider key if audio generation is needed:
+
+Windows PowerShell:
+
+```powershell
+$env:ELEVENLABS_API_KEY = "your-key"
+$env:PYTHONPATH = "."
 uvicorn session_api:app --reload --port 8001
 ```
 
-API:
+macOS/Linux:
 
-- `POST http://localhost:8001/api/session-story`
-  - Request body includes `session_type`, `patient`, and `answers`
-  - Returns `story_text` and optional `audio_base64`
+```bash
+export ELEVENLABS_API_KEY="your-key"
+export PYTHONPATH=.
+uvicorn session_api:app --reload --port 8001
+```
 
----
+If no ElevenLabs key is configured, story text can still be generated by the service, but audio generation is skipped. OpenAPI documentation is available at `http://127.0.0.1:8001/docs`.
 
-## 5. Frontend (React) Setup
+## Run the client
 
-From project root:
+Open another terminal from the repository root:
 
 ```bash
 cd client
 npm install
-```
-
-Run the dev server:
-
-```bash
 npm run dev
 ```
 
-By default this runs on something like `http://localhost:5173` (Vite). The client is configured to talk to:
+Use the local URL shown by Vite. Check the client configuration before relying on the default API URLs; the Express API and story service must be running separately.
 
-- Express backend under `/api/...`
-- FastAPI ML service at `http://localhost:8001/api/session-story`
+## Password-storage tests
 
-Make sure backend and FastAPI are running before using ML features.
+From `backend/`:
 
----
+```bash
+npm test
+```
 
-## 6. Core Flows
+These tests cover scrypt hashing, password verification, and migration of legacy plain-text password records during a successful login. They do not constitute an application-wide security test.
 
-### 6.1 Patient onboarding
+## Known limitations and recommended next steps
 
-1. Caregiver registers / logs in.
-2. On first visit to Home, if no patient profile exists, they are prompted to **Create Profile**.
-3. `PatientSetup` guides them through basic info and life history.
-4. On success, patient is saved in Mongo and set as `currentPatient` in `PatientContext`.
+1. Add session or token issuance to login, then protect every patient-related route with authentication and per-patient ownership checks.
+2. Serve uploaded media through authorized routes instead of exposing the uploads directory publicly.
+3. Restrict the FastAPI CORS allowlist and add request/rate limits to both services.
+4. Integrate real speech-to-text before advertising transcription.
+5. Add automated API integration tests with a test database, request validation, and a frontend end-to-end smoke test.
+6. Document the dataset/model provenance and clinical-safety boundaries for generated content.
 
-### 6.2 ML session creation
-
-For pages like:
-
-- `SessionFamily`
-- `SessionCoreMemories`
-- `SessionReassurances`
-- `SessionMorningRoutine`
-- `SessionNightRoutine`
-
-Flow when clicking **Continue**:
-
-1. Build a structured `answers` payload from the form.
-2. Call FastAPI `POST /api/session-story`.
-3. Receive `story_text` and `audio_base64` (if audio generation succeeds).
-4. Decode `audio_base64` to a `Blob`, create a local `audioUrl` for playback.
-5. Upload the `Blob` to Express via `POST /api/upload/audio`.
-6. Save a `Session` via `POST /api/sessions` with:
-   - `patientId`
-   - `type` (family, core_memory, reassurance, morning_routine, night_routine)
-   - `title`, `content`, `audioUrl` (from upload response)
-
-The session then appears in the **Schedule** page dropdown.
-
-### 6.3 Scheduling and playback
-
-- The **Schedule** page:
-  - Fetches `sessions` and `schedules` for the current patient.
-  - Lets caregivers create a schedule by picking a session + days + time.
-  - Uses a custom `AudioPlayer` component to play `session.audioUrl` for scheduled sessions.
-
----
-
-## 7. Quiz Engine (Optional Integration)
-
-`quiz_engine.py` provides helper functions:
-
-- `generate_quiz(session_type, form_data, language)` – creates Yes/No questions.
-- `score_quiz(quiz_questions, answers, language)` – computes engagement metrics.
-- `build_progress_point(patient_id, session_id, session_type, quiz_scores)` – structure to store in DB.
-
-A typical integration:
-
-1. After a session audio finishes (e.g. on `AudioPlayer` `onComplete`), call a FastAPI route that wraps `generate_quiz`.
-2. Show the returned questions in the UI.
-3. Post answers back to another route that uses `score_quiz` and persists results.
-
----
-
-## 8. Environment & Security Notes
-
-- Do **not** commit real API keys.
-- Use `.env` files and environment variables for secrets.
-- Ensure CORS is restricted in production (FastAPI currently allows `*` for development).
-
----
-
-## 9. Future Ideas
-
-- Visual engagement dashboard using quiz scores over time.
-- Shared access for multiple caregivers per patient.
-- More languages and voices for story + audio.
-- Exportable PDF summaries for clinicians or family members.
+This project is a software prototype for exploration, not medical advice, clinical treatment, or a replacement for caregiver/professional judgement.
